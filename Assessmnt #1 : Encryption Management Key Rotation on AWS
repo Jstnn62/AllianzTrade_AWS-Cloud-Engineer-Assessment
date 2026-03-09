@@ -1,141 +1,155 @@
-#Question 1
-What are the main challenges in applying key rotation and what could be the impact?
+# Encryption Key Rotation Architecture
 
-There are several practical challenges when implementing KMS key rotation in this architecture.
+---
 
-One important factor is the use of BYOK (Bring Your Own Key). In this model, encryption keys are generated outside AWS in an on-premise Hardware Security Module (HSM) and 
-then imported into AWS Key Management Service. Because of this, AWS cannot automatically rotate the key. A new key must be generated in the HSM and securely imported again.
+# Question 1
+## What are the main challenges in applying key rotation and what could be the impact?
 
-Another challenge is the multi-account architecture. The encryption keys are stored in a dedicated security account, while workloads run in Dev and Prod AWS accounts. 
-This requires proper cross-account IAM policies and KMS key policies so services can access the keys securely.
+There are several practical challenges when implementing **KMS key rotation** in this architecture.
 
-There is also the dependency between encryption keys and services like Amazon S3, Amazon RDS, and Amazon DynamoDB. If key rotation is not handled correctly, these services may not be able to decrypt existing data.
+One important factor is the use of **BYOK (Bring Your Own Key)**. In this model, encryption keys are generated outside AWS in an **on-premise Hardware Security Module (HSM)** and then imported into **AWS Key Management Service**. Because of this, AWS cannot automatically rotate the key. A new key must be generated in the HSM and securely imported again.
 
-Another important concept is the use of KMS aliases. Applications normally refer to the alias instead of the actual Key ID. During rotation, 
-the alias must be carefully updated to point to the new key to avoid breaking applications.
+Another challenge is the **multi-account architecture**. The encryption keys are stored in a **dedicated security account**, while workloads run in **Dev and Prod AWS accounts**. This requires proper **cross-account IAM policies** and **KMS key policies** so services can access the keys securely.
 
-Finally, from a compliance point of view, there must be a way to detect resources that are still using old encryption keys or resources where key rotation has not been applied.
+There is also the dependency between encryption keys and services like **Amazon S3**, **Amazon RDS**, and **Amazon DynamoDB**. If key rotation is not handled correctly, these services may not be able to decrypt existing data.
 
-#Question 2
-What are the high-level steps to apply key rotation?
+Another important concept is the use of **KMS aliases**. Applications normally refer to the alias instead of the actual **Key ID**. During rotation, the alias must be carefully updated to point to the new key to avoid breaking applications.
+
+Finally, from a **compliance point of view**, there must be a way to detect resources that are still using **old encryption keys** or resources where **key rotation has not been applied**.
+
+---
+
+# Question 2
+## What are the high-level steps to apply key rotation?
+
 The key rotation process can be implemented in several stages.
 
- he key rotation process can be implemented in several stages.
+The key rotation process can be implemented in several stages.
 
-Step 1 – Generate New Key Material
+### Step 1 – Generate New Key Material
 
-First, a new encryption key (key material) is generated in the organization’s on-premise HSM.
-This follows the BYOK model where key ownership remains with the organization.
+First, a **new encryption key (key material)** is generated in the organization’s **on-premise HSM**.  
+This follows the **BYOK model** where key ownership remains with the organization.
 
-Step 2 – Import Key into AWS
+---
 
-Next, the new key material is imported into AWS Key Management Service using the KMS Secure Key Import process.
+### Step 2 – Import Key into AWS
+
+Next, the new key material is imported into **AWS Key Management Service** using the **KMS Secure Key Import process**.
 
 AWS provides:
 
-an import token
-
-a public wrapping key
+- an **import token**
+- a **public wrapping key**
 
 These are used to securely upload the key.
 
-Step 3 – Create New KMS Key
+---
 
-Once the key material is available in KMS, a new KMS key is created in the central security account.
+### Step 3 – Create New KMS Key
 
-Step 4 – Update KMS Alias
+Once the key material is available in KMS, a **new KMS key** is created in the **central security account**.
 
-After that, the KMS alias is updated to point to the new key.
+---
+
+### Step 4 – Update KMS Alias
+
+After that, the **KMS alias** is updated to point to the new key.
 
 Example:
-
 alias/prod-rds
 alias/dev-s3
 
-Because applications use the alias instead of the key ID, this change is usually transparent to the application.
 
-Step 5 – Update Resource Encryption
+Because applications use the **alias instead of the key ID**, this change is usually transparent to the application.
+
+---
+
+### Step 5 – Update Resource Encryption
 
 Next, the resources using encryption must be updated to use the new key.
 
 Examples:
 
-Amazon S3
+#### Amazon S3
+Buckets can update their **Server-Side Encryption (SSE-KMS)** configuration.
 
-Buckets can update their Server-Side Encryption (SSE-KMS) configuration.
+#### Amazon RDS
+May require a **snapshot and restore process** if encryption settings need to change.
 
-Amazon RDS
+#### Amazon DynamoDB
+Tables can update their **KMS encryption key configuration**.
 
-May require a snapshot and restore process if encryption settings need to change.
+---
 
-Amazon DynamoDB
+### Step 6 – Application Validation
 
-Tables can update their KMS encryption key configuration.
+After the update, **application testing** should be done to confirm that:
 
-Step 6 – Application Validation
+- encryption operations work
+- decryption operations work
+- applications can access existing data
 
-After the update, application testing should be done to confirm that:
+---
 
-encryption operations work
+### Step 7 – Decommission Old Key
 
-decryption operations work
+Finally, the previous **KMS key** can be:
 
-applications can access existing data
+- **disabled**
+- **scheduled for deletion**
 
-Step 7 – Decommission Old Key
+Usually after a **waiting period (for example 30 days)**.
 
-Finally, the previous KMS key can be:
+---
 
-disabled
-
-scheduled for deletion
-
-Usually after a waiting period (for example 30 days).
-
-#Question 3
-How can we monitor resources where key rotation is not applied using AWS managed services?
+# Question 3
+## How can we monitor resources where key rotation is not applied using AWS managed services?
 
 To monitor compliance, AWS provides managed services that continuously evaluate resource configurations.
 
-One important service is AWS Config. This service can run compliance rules that check whether resources follow encryption policies. 
-For example, rules can verify if storage services are encrypted or if the correct KMS key is being used.
+One important service is **AWS Config**. This service can run **compliance rules** that check whether resources follow encryption policies.
 
-When a resource does not meet the expected configuration, AWS Config marks it as non-compliant.
+For example, rules can verify:
 
-For event-driven monitoring, Amazon EventBridge can capture these compliance events and trigger automated actions.
+- if storage services are encrypted
+- if the correct **KMS key** is being used
 
-These actions can include sending alerts or triggering a function in AWS Lambda.
+When a resource does not meet the expected configuration, **AWS Config marks it as non-compliant**.
+
+For **event-driven monitoring**, **Amazon EventBridge** can capture these compliance events and trigger automated actions.
+
+These actions can include:
+
+- sending alerts
+- triggering a function in **AWS Lambda**
 
 The Lambda function can perform tasks such as:
 
-Sending notifications to the security team
+- Sending notifications to the security team
+- Logging the issue for auditing
+- Automatically correcting the configuration
 
-Logging the issue for auditing
+This approach ensures **continuous monitoring and compliance visibility across all AWS accounts**.
 
-Automatically correcting the configuration
+---
 
-This approach ensures continuous monitoring and compliance visibility across all AWS accounts.
+# Question 4
+## What is the best way to secure key material during transportation from HSM to AWS KMS?
 
-#Question 4
-What is the best way to secure key material during transportation from HSM to AWS KMS?
+The recommended method is to use the **Secure Key Import mechanism provided by AWS Key Management Service**.
 
-The recommended method is to use the Secure Key Import mechanism provided by AWS Key Management Service.
+In this process, **AWS KMS generates a temporary public key (wrapping key) and an import token**. The encryption key material generated in the **on-premise HSM** is encrypted using this public key before it is transferred.
 
-In this process, AWS KMS generates a temporary public key (wrapping key) and an import token. The encryption key material generated in the on-premise HSM is encrypted using this public key before it is transferred.
+The encrypted key is then uploaded to AWS over a **TLS-encrypted connection**.
 
-The encrypted key is then uploaded to AWS over a TLS-encrypted connection.
-
-Because the key material is encrypted before leaving the HSM and only AWS KMS can decrypt it, the plaintext key is never exposed during transport.
+Because the key material is encrypted before leaving the HSM and only **AWS KMS** can decrypt it, the **plaintext key is never exposed during transport**.
 
 This method ensures strong security using concepts such as:
 
-Envelope encryption
+- Envelope encryption
+- Public key cryptography
+- Secure key wrapping
+- TLS encrypted communication
 
-Public key cryptography
-
-Secure key wrapping
-
-TLS encrypted communication
-
-This approach protects the confidentiality of the key material throughout the entire import process.
-
+This approach protects the **confidentiality of the key material throughout the entire import process**.
