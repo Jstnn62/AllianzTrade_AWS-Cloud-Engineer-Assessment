@@ -1,4 +1,4 @@
-# Encryption Key Rotation Architecture
+# Encryption Management Key Rotation on AWS
 
 ---
 
