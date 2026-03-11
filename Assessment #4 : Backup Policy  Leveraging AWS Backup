@@ -1,4 +1,23 @@
+The goal is to create a reliable and automated backup system on AWS.
+automatic
+secure
+protected from deletion
+available even if a region or account fails
+To achieve this, we use AWS Backup with automation through Terraform.
 
+Whenever a resource in AWS is marked for backup, AWS Backup should automatically:
+
+create a backup
+
+store it securely
+
+copy it to another region
+
+copy it to another AWS account
+
+protect it from deletion
+
+So even if something goes wrong, we still have a safe copy.
 
 provider "aws" {
   region = "eu-central-1"
@@ -51,8 +70,7 @@ resource "aws_backup_plan" "daily_backup" {
   }
 }
 
-# IAM Role used by AWS Backup
-
+# IAM Role used by AWS Bac
 resource "aws_iam_role" "backup_role" {
 
   name = "aws-backup-role"
