@@ -19,6 +19,8 @@ protect it from deletion
 
 So even if something goes wrong, we still have a safe copy.
 
+Terraform code :
+
 provider "aws" {
   region = "eu-central-1"
 }
